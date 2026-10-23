@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Coddy Helper",
+  "version": "1.0.0",
+  "description": "Đọc bài tập Coddy, tạo lời giải và điền vào trang.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://coddy.tech/*",
+    "https://*.coddy.tech/*",
+    "https://api.openai.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Coddy Helper",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://coddy.tech/*",
+        "https://*.coddy.tech/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "page-bridge.js"
+      ],
+      "matches": [
+        "https://coddy.tech/*",
+        "https://*.coddy.tech/*"
+      ]
+    }
+  ]
+}
