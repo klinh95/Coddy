@@ -1,19 +1,22 @@
-:root { color-scheme: light; font: 14px/1.45 system-ui, sans-serif; }
-body { width: 340px; margin: 0; color: #1f2937; background: #fff; }
-main { padding: 16px; }
+:root { color-scheme: light; font: 14px/1.4 system-ui, sans-serif; }
+body { width: 360px; max-height: 600px; margin: 0; overflow-y: auto; color: #1f2937; background: #fff; }
+main { padding: 15px; }
 h1 { margin: 0 0 4px; font-size: 19px; }
-.intro { margin: 0 0 14px; color: #5b6472; }
-label:not(.check) { display: block; margin: 10px 0 4px; font-weight: 600; }
-input[type="password"], input[type="text"] {
+.intro, .hint { margin: 0 0 12px; color: #5b6472; }
+label:not(.check) { display: block; margin: 9px 0 4px; font-weight: 600; }
+input[type="password"], input[type="text"], input[type="url"], select, textarea {
   box-sizing: border-box; width: 100%; border: 1px solid #cbd5e1; border-radius: 7px;
-  padding: 9px 10px; font: inherit;
+  padding: 8px 9px; font: inherit; background: #fff; color: #1f2937;
 }
-.check { display: flex; align-items: center; gap: 8px; margin: 13px 0; }
-button { width: 100%; border: 0; border-radius: 8px; padding: 10px 12px; color: white;
-  background: #1677d2; font: 600 14px system-ui, sans-serif; cursor: pointer; }
+textarea { resize: vertical; min-height: 72px; font: 12px/1.4 ui-monospace, Consolas, monospace; }
+section { margin-top: 10px; }
+[hidden] { display: none !important; }
+.check { display: flex; align-items: center; gap: 8px; margin: 12px 0; }
+button { width: 100%; margin-top: 9px; border: 0; border-radius: 8px; padding: 10px 12px;
+  color: white; background: #1677d2; font: 600 14px system-ui, sans-serif; cursor: pointer; }
 button:disabled { opacity: .6; cursor: wait; }
-button.secondary { margin-top: 8px; color: #334155; background: #e9eef5; }
-#status { min-height: 20px; margin-top: 10px; color: #334155; }
-#result { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto;
+button.secondary { color: #334155; background: #e9eef5; }
+#status { min-height: 20px; margin-top: 9px; color: #334155; }
+#result { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 140px; overflow: auto;
   border: 1px solid #dbe3ee; border-radius: 7px; padding: 9px; background: #f8fafc; }
-.privacy { margin: 13px 0 0; color: #64748b; font-size: 11px; }
+.privacy { margin: 12px 0 0; color: #64748b; font-size: 11px; }

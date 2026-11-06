@@ -9,24 +9,46 @@
 <body>
   <main>
     <h1>Coddy Helper</h1>
-    <p class="intro">Giải câu hỏi đang mở, điền đáp án và tùy chọn nộp tự động.</p>
+    <p class="intro">Hỗ trợ trắc nghiệm, code, chọn dòng và điền khuyết.</p>
 
-    <label for="apiKey">OpenAI API key</label>
-    <input id="apiKey" type="password" autocomplete="off" placeholder="sk-…">
+    <label for="mode">Cách dùng AI</label>
+    <select id="mode">
+      <option value="api">API tương thích OpenAI</option>
+      <option value="manual">Chatbot bất kỳ (thủ công)</option>
+    </select>
 
-    <label for="model">Model</label>
-    <input id="model" type="text" value="gpt-6-astra" spellcheck="false">
+    <section id="apiSettings">
+      <label for="apiBase">Địa chỉ API</label>
+      <input id="apiBase" type="url" value="https://api.openai.com/v1" spellcheck="false">
+      <label for="apiKey">API key</label>
+      <input id="apiKey" type="password" autocomplete="off" placeholder="API key của nhà cung cấp">
+      <label for="model">Model</label>
+      <input id="model" type="text" value="gpt-6-astra" spellcheck="false">
+      <button id="solveApi">Giải qua API</button>
+    </section>
+
+    <section id="manualSettings" hidden>
+      <p class="hint">Tạo prompt, dán vào chatbot bạn muốn dùng, rồi dán JSON trả lời vào đây.</p>
+      <button id="preparePrompt">Tạo prompt từ tab Coddy</button>
+      <div id="manualPanel" hidden>
+        <label for="promptText">Prompt gửi cho AI</label>
+        <textarea id="promptText" rows="7" readonly></textarea>
+        <button id="copyPrompt" class="secondary">Sao chép prompt</button>
+        <label for="aiResponse">Dán JSON AI trả lời</label>
+        <textarea id="aiResponse" rows="6" placeholder='{"type":"lines","lineNumbers":[2],...}'></textarea>
+        <button id="applyManual">Điền đáp án vào Coddy</button>
+      </div>
+    </section>
 
     <label class="check">
       <input id="autoSubmit" type="checkbox" checked>
-      <span>Tự nộp sau khi điền</span>
+      <span>Tự nộp sau khi điền/chọn</span>
     </label>
 
-    <button id="solve">Giải bài trên tab Coddy</button>
     <div id="status" role="status"></div>
     <pre id="result" hidden></pre>
 
-    <p class="privacy">Khi bấm giải, tiện ích gửi nội dung bài tập và code trong editor tới OpenAI API. API key được lưu cục bộ trong Chrome. Hãy kiểm tra lời giải trước khi nộp nếu muốn.</p>
+    <p class="privacy">Chế độ API gửi nội dung bài, lựa chọn và code tới địa chỉ API bạn đặt. Chế độ chatbot thủ công chỉ tạo prompt; bạn tự chọn AI và dán kết quả về.</p>
     <button id="save" class="secondary">Lưu cài đặt</button>
   </main>
   <script src="popup.js"></script>

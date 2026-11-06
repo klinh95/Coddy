@@ -1,20 +1,38 @@
 # Coddy Helper
 
-Tiện ích Chrome Manifest V3 để đọc bài tập đang mở trên Coddy, gửi đề bài tới OpenAI API, rồi điền phương án trắc nghiệm / code / câu trả lời vào trang. Tùy chọn **Tự nộp sau khi điền** được bật mặc định; có thể tắt trong popup.
+Tiện ích Chrome Manifest V3 hỗ trợ các dạng trắc nghiệm, viết code, chọn dòng code và điền khuyết.
 
-## Cài đặt
+## Dùng với AI
 
-1. Giải nén hoặc giữ nguyên thư mục này.
-2. Mở `chrome://extensions` trên Chrome.
-3. Bật **Developer mode**.
-4. Chọn **Load unpacked** và chọn thư mục `coddy-helper` này.
-5. Nếu tab Coddy đã mở trước đó, tải lại tab một lần.
-6. Mở một bài tập trên `coddy.tech`, bấm biểu tượng tiện ích, nhập OpenAI API key và model, rồi chọn **Giải bài trên tab Coddy**.
+### API tương thích OpenAI
 
-Mặc định model là `gpt-6-astra`; có thể sửa theo model được bật cho API key của bạn. API key được lưu trong `chrome.storage.local` của Chrome. Không đưa key vào file mã nguồn.
+Trong popup chọn **API tương thích OpenAI**, đặt URL API, model và API key. Dùng được với dịch vụ cung cấp giao thức Chat Completions tương thích OpenAI. Khi bấm **Giải qua API**, Chrome sẽ hỏi quyền kết nối tới host API đã nhập. Mặc định là OpenAI: `https://api.openai.com/v1`.
 
-## Dữ liệu và giới hạn
+### Chatbot bất kỳ
 
-Khi bấm giải, tiện ích gửi tiêu đề trang, URL, nội dung văn bản đang hiển thị, các lựa chọn tìm thấy và nội dung editor tới OpenAI API. Không có dữ liệu nào được gửi khi chỉ mở popup. Hãy chỉ dùng API key bạn kiểm soát.
+Chọn **Chatbot bất kỳ (thủ công)**, bấm **Tạo prompt từ tab Coddy**, sao chép prompt sang chatbot bạn muốn dùng, rồi dán JSON nó trả lời vào tiện ích và chọn **Điền đáp án vào Coddy**. Cách này dùng được với chatbot bất kỳ, kể cả dịch vụ chỉ có giao diện web hoặc API khác định dạng.
 
-Tiện ích hỗ trợ tốt nhất trang Coddy có DOM đọc được và editor Monaco hoặc Ace. Nếu Coddy thay đổi cấu trúc trang hoặc editor, có thể cần cập nhật bộ nhận diện. Model có thể sai; khi tắt nộp tự động, tiện ích chỉ điền lời giải để bạn xem lại.
+JSON cần có `type` là `choice`, `code`, `text`, `lines` hoặc `blanks`. Ví dụ chọn dòng:
+
+```json
+{"type":"lines","lineNumbers":[2],"answer":"2","explanation":"Dòng 2 gán giá trị mới cho phần tử mảng."}
+```
+
+Ví dụ điền khuyết:
+
+```json
+{"type":"blanks","blanks":[{"index":1,"answer":"substring"},{"index":2,"answer":"7"},{"index":3,"answer":"12"}],"explanation":"substring dùng chỉ số bắt đầu và kết thúc."}
+```
+
+## Cài đặt hoặc cập nhật
+
+1. Mở `chrome://extensions` và bật **Developer mode**.
+2. Lần đầu, chọn **Load unpacked** và chọn thư mục `coddy-helper`. Nếu đã cài bản trước, bấm nút **Reload** trên thẻ Coddy Helper.
+3. Tải lại tab Coddy nếu tab đã mở trước đó.
+4. Mở bài tập và dùng popup.
+
+Mặc định **Tự nộp sau khi điền/chọn** bật. Có thể tắt trong popup để xem lại đáp án trước. API key được lưu trong `chrome.storage.local` của Chrome. Ở chế độ API, nội dung bài, lựa chọn và code được gửi tới host API bạn đặt. Ở chế độ thủ công, tiện ích chỉ tạo prompt; bạn tự quyết định chatbot nào nhận nội dung.
+
+## Giới hạn
+
+Việc đọc và điền phụ thuộc cấu trúc trang Coddy, DOM của dạng câu hỏi và editor trên trang. Hỗ trợ code tốt nhất với Monaco hoặc Ace. Mô hình AI có thể sai; hãy kiểm tra câu trả lời, đặc biệt khi bật tự nộp.

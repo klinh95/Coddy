@@ -1,17 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Coddy Helper",
-  "version": "1.0.0",
-  "description": "Đọc bài tập Coddy, tạo lời giải và điền vào trang.",
-  "permissions": [
-    "activeTab",
-    "storage",
-    "scripting"
-  ],
+  "version": "1.1.0",
+  "description": "Giải và điền nhiều dạng bài tập trên Coddy bằng API tương thích hoặc chatbot bất kỳ.",
+  "permissions": ["activeTab", "storage", "scripting", "clipboardWrite"],
   "host_permissions": [
     "https://coddy.tech/*",
-    "https://*.coddy.tech/*",
-    "https://api.openai.com/*"
+    "https://*.coddy.tech/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -22,25 +22,15 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "https://coddy.tech/*",
-        "https://*.coddy.tech/*"
-      ],
-      "js": [
-        "content.js"
-      ],
+      "matches": ["https://coddy.tech/*", "https://*.coddy.tech/*"],
+      "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": [
-        "page-bridge.js"
-      ],
-      "matches": [
-        "https://coddy.tech/*",
-        "https://*.coddy.tech/*"
-      ]
+      "resources": ["page-bridge.js"],
+      "matches": ["https://coddy.tech/*", "https://*.coddy.tech/*"]
     }
   ]
 }
