@@ -1,5 +1,7 @@
 const modeField = document.getElementById("mode");
+const providerField = document.getElementById("provider");
 const apiSettings = document.getElementById("apiSettings");
+const compatibleSettings = document.getElementById("compatibleSettings");
 const manualSettings = document.getElementById("manualSettings");
 const manualPanel = document.getElementById("manualPanel");
 const apiBaseField = document.getElementById("apiBase");
@@ -15,6 +17,9 @@ const aiResponse = document.getElementById("aiResponse");
 const saveButton = document.getElementById("save");
 const statusBox = document.getElementById("status");
 const resultBox = document.getElementById("result");
+let providerKeys = {};
+let providerModels = {};
+let activeProvider = "gemini";
 
 const SYSTEM_PROMPT = [
   "Bạn là trợ lý giải bài tập lập trình trên Coddy.",
@@ -31,15 +36,23 @@ const SYSTEM_PROMPT = [
 
 (async function loadSettings() {
   const saved = await chrome.storage.local.get([
-    "apiKey", "apiBase", "model", "mode", "autoSubmit", "pendingExercise", "pendingTabId", "manualResponse"
+    "apiKey", "apiKeys", "apiBase", "model", "provider", "providerModels", "mode", "autoSubmit",
+    "pendingExercise", "pendingTabId", "manualResponse"
   ]);
-  apiKeyField.value = saved.apiKey || "";
+  providerKeys = saved.apiKeys || {};
+  providerModels = saved.providerModels || {};
+  activeProvider = saved.provider || "gemini";
+  providerField.value = activeProvider;
+  apiKeyField.value = providerKeys[activeProvider] ||
+    ((saved.provider === activeProvider || !saved.provider) ? (saved.apiKey || "") : "");
   apiBaseField.value = saved.apiBase || "https://api.openai.com/v1";
-  modelField.value = saved.model || "gpt-6-astra";
+  modelField.value = providerModels[activeProvider] || saved.model ||
+    (providerField.value === "gemini" ? "gemini-3.8-flash" : "gpt-6-astra");
   modeField.value = saved.mode || "api";
   autoSubmitField.checked = saved.autoSubmit !== false;
   aiResponse.value = saved.manualResponse || "";
   refreshMode();
+  refreshProvider();
   if (saved.pendingExercise && saved.pendingTabId) {
     promptText.value = makePrompt(saved.pendingExercise);
     manualPanel.hidden = false;
@@ -51,16 +64,50 @@ function refreshMode() {
   apiSettings.hidden = manual;
   manualSettings.hidden = !manual;
 }
+
+function refreshProvider() {
+  const gemini = providerField.value === "gemini";
+  compatibleSettings.hidden = gemini;
+  if (gemini && (!modelField.value || modelField.value === "gpt-6-astra")) {
+    modelField.value = "gemini-3.8-flash";
+  }
+  if (!gemini && modelField.value === "gemini-3.8-flash") {
+    modelField.value = "gpt-6-astra";
+  }
+}
+
 modeField.addEventListener("change", async () => {
   refreshMode();
   await chrome.storage.local.set({ mode: modeField.value });
 });
 
-async function saveSettings() {
+providerField.addEventListener("change", async () => {
+  providerKeys[activeProvider] = apiKeyField.value.trim();
+  providerModels[activeProvider] = modelField.value.trim();
+  activeProvider = providerField.value;
+  apiKeyField.value = providerKeys[activeProvider] || "";
+  modelField.value = providerModels[activeProvider] ||
+    (activeProvider === "gemini" ? "gemini-3.8-flash" : "gpt-6-astra");
+  refreshProvider();
   await chrome.storage.local.set({
+    provider: activeProvider,
+    apiKeys: providerKeys,
+    providerModels
+  });
+});
+
+async function saveSettings() {
+  activeProvider = providerField.value;
+  providerKeys[activeProvider] = apiKeyField.value.trim();
+  providerModels[activeProvider] = modelField.value.trim() ||
+    (activeProvider === "gemini" ? "gemini-3.8-flash" : "gpt-6-astra");
+  await chrome.storage.local.set({
+    apiKeys: providerKeys,
+    providerModels,
     apiKey: apiKeyField.value.trim(),
     apiBase: apiBaseField.value.trim() || "https://api.openai.com/v1",
-    model: modelField.value.trim() || "gpt-6-astra",
+    model: modelField.value.trim() || (providerField.value === "gemini" ? "gemini-3.8-flash" : "gpt-6-astra"),
+    provider: providerField.value,
     mode: modeField.value,
     autoSubmit: autoSubmitField.checked
   });
@@ -140,16 +187,30 @@ solveApiButton.addEventListener("click", async () => {
   resultBox.hidden = true;
   statusBox.textContent = "Đang kiểm tra quyền API…";
   try {
-    const pattern = endpointPermissionPattern(apiBaseField.value.trim());
+    let pattern;
+    if (providerField.value === "gemini") {
+      pattern = "https://generativelanguage.googleapis.com/*";
+    } else {
+      pattern = endpointPermissionPattern(apiBaseField.value.trim());
+    }
     const permitted = await chrome.permissions.request({ origins: [pattern] });
-    if (!permitted) throw new Error("Chưa cấp quyền truy cập tới địa chỉ API này.");
+    if (!permitted) throw new Error("Chưa cấp quyền truy cập tới host API này.");
 
     await saveSettings();
     const tab = await getCoddyTab();
     statusBox.textContent = "Đang đọc bài tập…";
     const exercise = await readCurrentExercise(tab);
     statusBox.textContent = "Đang gửi bài cho AI…";
-    const reply = await chrome.runtime.sendMessage({ type: "SOLVE_EXERCISE", exercise });
+    const reply = await chrome.runtime.sendMessage({
+      type: "SOLVE_EXERCISE",
+      exercise,
+      settings: {
+        provider: providerField.value,
+        apiKey: apiKeyField.value.trim(),
+        model: modelField.value.trim(),
+        apiBase: apiBaseField.value.trim()
+      }
+    });
     if (!reply?.ok) throw new Error(reply?.error || "API không trả lời được.");
 
     statusBox.textContent = "Đang điền vào Coddy…";
@@ -236,7 +297,10 @@ function parseManualSolution(raw) {
     answer: String(value.answer ?? ""),
     choiceText: String(value.choiceText ?? ""),
     lineNumbers: Array.isArray(value.lineNumbers) ? value.lineNumbers.map(Number) : [],
-    blanks: Array.isArray(value.blanks) ? value.blanks.map((item, index) => ({ index: Number(item?.index) || index + 1, answer: String(item?.answer ?? "") })).filter((item) => item.answer) : [],
+    blanks: Array.isArray(value.blanks) ? value.blanks.map((item, index) => ({
+      index: Number(item?.index) || index + 1,
+      answer: String(item?.answer ?? "")
+    })).filter((item) => item.answer) : [],
     explanation: String(value.explanation ?? "")
   };
 }

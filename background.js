@@ -14,48 +14,145 @@ const SYSTEM_PROMPT = [
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type !== "SOLVE_EXERCISE") return false;
 
-  solveExercise(message.exercise)
+  solveExercise(message.exercise, message.settings || {})
     .then((solution) => sendResponse({ ok: true, solution }))
     .catch((error) => sendResponse({ ok: false, error: error.message || String(error) }));
 
   return true;
 });
 
-async function solveExercise(exercise) {
-  const { apiKey, model, apiBase } =
-    await chrome.storage.local.get(["apiKey", "model", "apiBase"]);
-  if (!apiKey) throw new Error("Hãy nhập API key hoặc dùng chế độ chatbot thủ công.");
+async function solveExercise(exercise, suppliedSettings) {
+  const saved = await chrome.storage.local.get(["provider", "apiKey", "apiKeys", "model", "apiBase"]);
+  const provider = suppliedSettings.provider || saved.provider || "gemini";
+  const apiKey = String(suppliedSettings.apiKey || saved.apiKeys?.[provider] || saved.apiKey || "").trim();
+  const model = String(suppliedSettings.model || saved.model || (provider === "gemini" ? "gemini-3.8-flash" : "gpt-6-astra")).trim();
+  const apiBase = suppliedSettings.apiBase || saved.apiBase || "https://api.openai.com/v1";
+  if (!apiKey) throw new Error("Hãy nhập API key của nhà cung cấp đã chọn.");
 
-  const base = (apiBase || "https://api.openai.com/v1").trim().replace(/\/+$/, "");
-  const url = base.endsWith("/chat/completions") ? base : base + "/chat/completions";
-  const context = makeContext(exercise);
+  const prompt = "Giải bài tập trong dữ liệu JSON sau.\n" + JSON.stringify(makeContext(exercise));
+  let raw;
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: model || "gpt-6-astra",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: "Giải bài tập trong dữ liệu JSON sau.\n" + JSON.stringify(context) }
-      ]
-    })
-  });
-
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = payload?.error?.message || `HTTP ${response.status}`;
-    throw new Error(`API: ${detail}`);
+  if (provider === "gemini") {
+    const request = {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        model,
+        input: prompt,
+        system_instruction: SYSTEM_PROMPT,
+        response_format: { type: "text", mime_type: "application/json" }
+      })
+    };
+    let result = await requestJson("https://generativelanguage.googleapis.com/v1beta/interactions", request, "Gemini API");
+    if (!result.response.ok && shouldUseGenerateContent(result.response.status, result.payload)) {
+      result = await requestJson(
+        "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        },
+        "Gemini API"
+      );
+    }
+    if (!result.response.ok) throw apiError("Gemini API", result.response, result.payload, apiKey);
+    raw = extractGeminiText(result.payload);
+  } else {
+    if (/^AIza/i.test(apiKey)) {
+      throw new Error("API key này có dạng Gemini nhưng đang chọn API tương thích. Chọn Google Gemini.");
+    }
+    const base = (apiBase || "https://api.openai.com/v1").trim().replace(/\/+$/, "");
+    const url = base.endsWith("/chat/completions") ? base : base + "/chat/completions";
+    const result = await requestJson(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+      body: JSON.stringify({
+        model: model || "gpt-6-astra",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: prompt }
+        ]
+      })
+    }, "API");
+    if (!result.response.ok) throw apiError("API", result.response, result.payload, apiKey);
+    raw = result.payload?.choices?.[0]?.message?.content;
   }
 
-  const raw = payload?.choices?.[0]?.message?.content;
   if (typeof raw !== "string" || !raw.trim()) {
-    throw new Error("API không trả nội dung theo định dạng chat-completions.");
+    throw new Error("AI không trả nội dung lời giải dạng văn bản.");
   }
   return parseSolution(raw);
+}
+
+async function requestJson(url, options, label) {
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      const payload = await response.json().catch(() => ({}));
+      const retryable = [408, 429, 500, 502, 503, 504].includes(response.status);
+      const detail = String(payload?.error?.message || "");
+      const quotaExhausted = /quota|billing|limit.*exceed/i.test(detail);
+      if (retryable && !quotaExhausted && attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 700 * (attempt + 1)));
+        continue;
+      }
+      return { response, payload };
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 700 * (attempt + 1)));
+        continue;
+      }
+    }
+  }
+  throw new Error(label + ": không kết nối được sau 3 lần thử. " +
+    (lastError?.message || "Kiểm tra mạng và quyền truy cập API."));
+}
+
+function shouldUseGenerateContent(status, payload) {
+  const message = String(payload?.error?.message || "");
+  return status === 404 || status === 405 ||
+    /unknown field|unknown name.*(response_format|system_instruction)|cannot find field.*(response_format|system_instruction)|unsupported.*(response_format|system_instruction)/i.test(message);
+}
+
+function apiError(label, response, payload, apiKey) {
+  let detail = String(payload?.error?.message || ("HTTP " + response.status));
+  if (apiKey) detail = detail.split(apiKey).join("[đã ẩn API key]");
+  detail = detail.replace(/AIza[0-9A-Za-z_-]{10,}|sk-ant-[0-9A-Za-z_-]{8,}|sk-proj-[0-9A-Za-z_-]{8,}|sk-[0-9A-Za-z_-]{16,}/g, "[đã ẩn API key]");
+  if (/invalid.*api.?key|incorrect api key|api key.*(invalid|not valid|not accepted)/i.test(detail)) {
+    detail = "API key không được chấp nhận. Kiểm tra key và nhà cung cấp đang chọn.";
+  } else if (/quota|resource_exhausted|billing|rate.?limit/i.test(detail)) {
+    detail = "Đã chạm giới hạn hoặc quota của nhà cung cấp. Kiểm tra quota/billing rồi thử lại.";
+  } else if (/model.*(not found|does not exist|unsupported)/i.test(detail)) {
+    detail = "Model không khả dụng cho API key này. Kiểm tra chính xác tên model.";
+  }
+  return new Error(label + ": " + detail);
+}
+
+function extractGeminiText(payload) {
+  if (typeof payload?.output_text === "string") return payload.output_text;
+  const steps = Array.isArray(payload?.steps) ? payload.steps : [];
+  const stepText = steps
+    .filter((step) => step?.type === "model_output")
+    .flatMap((step) => Array.isArray(step.content) ? step.content : [])
+    .filter((part) => part?.type === "text" && typeof part.text === "string")
+    .map((part) => part.text)
+    .join("\n");
+  if (stepText) return stepText;
+  const interactionText = (Array.isArray(payload?.outputs) ? payload.outputs : [])
+    .filter((part) => part?.type === "text" && typeof part.text === "string")
+    .map((part) => part.text)
+    .join("\n");
+  if (interactionText) return interactionText;
+  return (payload?.candidates?.[0]?.content?.parts || [])
+    .filter((part) => typeof part?.text === "string")
+    .map((part) => part.text)
+    .join("\n");
 }
 
 function makeContext(exercise) {

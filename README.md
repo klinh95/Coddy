@@ -1,16 +1,19 @@
 # Coddy Helper
 
-Tiện ích Chrome Manifest V3 hỗ trợ các dạng trắc nghiệm, viết code, chọn dòng code và điền khuyết.
+Tiện ích Chrome Manifest V3 hỗ trợ trắc nghiệm, viết code, chọn dòng code và điền khuyết.
 
-## Dùng với AI
+## Dùng với Gemini
 
-### API tương thích OpenAI
+Trong popup chọn **Google Gemini**, dán Gemini API key và tên model. Không cần điền địa chỉ API. Tiện ích gọi Gemini Interactions API bằng API key và model đã nhập, thử lại khi gặp lỗi mạng/giới hạn tạm thời, và có đường lui sang GenerateContent khi Interactions API không khả dụng. API key được lưu riêng theo nhà cung cấp để tránh gửi nhầm key.
 
-Trong popup chọn **API tương thích OpenAI**, đặt URL API, model và API key. Dùng được với dịch vụ cung cấp giao thức Chat Completions tương thích OpenAI. Khi bấm **Giải qua API**, Chrome sẽ hỏi quyền kết nối tới host API đã nhập. Mặc định là OpenAI: `https://api.openai.com/v1`.
+Nếu Gemini đang được chọn nhưng lỗi lại ghi **OpenAI API**, tiện ích cũ vẫn đang chạy. Mở `edge://extensions` (Edge) hoặc `chrome://extensions` (Chrome), bấm **Reload** trên Coddy Helper, rồi tải lại tab Coddy. Popup của bản mới hiển thị `v1.3.0`. Google mô tả endpoint Interactions và định dạng này trong [tài liệu Gemini](https://ai.google.dev/gemini-api/docs/interactions-overview).
 
-### Chatbot bất kỳ
+## Dùng với AI khác
 
-Chọn **Chatbot bất kỳ (thủ công)**, bấm **Tạo prompt từ tab Coddy**, sao chép prompt sang chatbot bạn muốn dùng, rồi dán JSON nó trả lời vào tiện ích và chọn **Điền đáp án vào Coddy**. Cách này dùng được với chatbot bất kỳ, kể cả dịch vụ chỉ có giao diện web hoặc API khác định dạng.
+- Với dịch vụ có API tương thích OpenAI Chat Completions: chọn **OpenAI / API tương thích**, nhập endpoint, API key và model.
+- Với dịch vụ API khác định dạng hoặc chatbot chỉ có giao diện web: chọn **Chatbot bất kỳ (thủ công)**, tạo prompt, sao chép sang AI, rồi dán JSON câu trả lời về Coddy Helper.
+
+Mỗi nhà cung cấp dùng endpoint và định dạng API riêng. Chỉ có thể dùng API key + model mà không cần endpoint khi nhà cung cấp đã có adapter tích hợp (hiện có Gemini); các API khác cần adapter hoặc endpoint tương thích.
 
 JSON cần có `type` là `choice`, `code`, `text`, `lines` hoặc `blanks`. Ví dụ chọn dòng:
 
@@ -27,12 +30,12 @@ Ví dụ điền khuyết:
 ## Cài đặt hoặc cập nhật
 
 1. Mở `chrome://extensions` và bật **Developer mode**.
-2. Lần đầu, chọn **Load unpacked** và chọn thư mục `coddy-helper`. Nếu đã cài bản trước, bấm nút **Reload** trên thẻ Coddy Helper.
+2. Lần đầu, chọn **Load unpacked** và chọn thư mục `coddy-helper`. Nếu đã cài bản trước, bấm **Reload** trên thẻ Coddy Helper.
 3. Tải lại tab Coddy nếu tab đã mở trước đó.
 4. Mở bài tập và dùng popup.
 
-Mặc định **Tự nộp sau khi điền/chọn** bật. Có thể tắt trong popup để xem lại đáp án trước. API key được lưu trong `chrome.storage.local` của Chrome. Ở chế độ API, nội dung bài, lựa chọn và code được gửi tới host API bạn đặt. Ở chế độ thủ công, tiện ích chỉ tạo prompt; bạn tự quyết định chatbot nào nhận nội dung.
+Mặc định **Tự nộp sau khi điền/chọn** bật. Có thể tắt để xem lại đáp án trước. API key được lưu trong `chrome.storage.local` của Chrome. Chế độ API gửi đề bài và code tới nhà cung cấp đã chọn. Chế độ chatbot thủ công chỉ tạo prompt để bạn tự quyết định chatbot nhận nội dung.
 
 ## Giới hạn
 
-Việc đọc và điền phụ thuộc cấu trúc trang Coddy, DOM của dạng câu hỏi và editor trên trang. Hỗ trợ code tốt nhất với Monaco hoặc Ace. Mô hình AI có thể sai; hãy kiểm tra câu trả lời, đặc biệt khi bật tự nộp.
+Việc đọc và điền phụ thuộc cấu trúc trang Coddy và editor trên trang. Hỗ trợ code tốt nhất với Monaco hoặc Ace. Mô hình AI có thể sai; hãy kiểm tra lời giải, đặc biệt khi bật tự nộp.

@@ -20,3 +20,5 @@ button.secondary { color: #334155; background: #e9eef5; }
 #result { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 140px; overflow: auto;
   border: 1px solid #dbe3ee; border-radius: 7px; padding: 9px; background: #f8fafc; }
 .privacy { margin: 12px 0 0; color: #64748b; font-size: 11px; }
+
+.version { color: #718096; font-size: 11px; font-weight: 500; }
